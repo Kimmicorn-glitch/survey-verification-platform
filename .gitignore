@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+
+# Rust
+ai-engine/target/
+
+# Java
+backend/target/
+backend/build/
+*.class
+*.jar
+*.war
+
+# Blockchain
+blockchain/node_modules/
+blockchain/artifacts/
+blockchain/cache/
+blockchain/typechain-types/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+
+# Production builds
+dist/
+build/
+
+# Misc
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+
+# Kubernetes secrets
+*-secret.yaml
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Nginx
+*.conf~
+
+# Monitoring data
+infrastructure/monitoring/data/
+
+.vercel

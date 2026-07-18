@@ -1,0 +1,9 @@
+# Trivy ignore file for Survey Verification Platform
+# Only ignore false positives or accepted risks
+
+# H2 database is test-only, not deployed to production
+# CVE-2022-45868: H2 database DoS - test dependency only
+CVE-2022-45868
+
+# Jackson-databind early versions - managed by Spring Boot BOM
+# False positive due to BOM version management

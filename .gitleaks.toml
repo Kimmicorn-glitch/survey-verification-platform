@@ -1,0 +1,105 @@
+# Gitleaks configuration for Survey Verification Platform
+# See: https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    # Test fixtures and mock data
+    '''test[\/\\].*mock''',
+    '''test[\/\\].*fixture''',
+    # Generated files
+    '''node_modules[\/\\]''',
+    '''\.min\.js$''',
+    '''package-lock\.json$''',
+    # Documentation
+    '''\.md$''',
+    '''LICENSE''',
+    # Example env
+    '''\.env\.example$''',
+  ]
+
+[[rules]]
+  id = "aws-access-key"
+  description = "AWS Access Key"
+  regex = '''(?i)AKIA[0-9A-Z]{16}'''
+  tags = ["key", "AWS"]
+
+[[rules]]
+  id = "aws-secret-key"
+  description = "AWS Secret Access Key"
+  regex = '''(?i)(aws_secret_access_key|aws_secret_key)\s*=\s*[0-9a-zA-Z\/+]{40}'''
+  tags = ["key", "AWS"]
+
+[[rules]]
+  id = "private-key"
+  description = "Private Key"
+  regex = '''-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----'''
+  tags = ["key", "private"]
+
+[[rules]]
+  id = "jwt-token"
+  description = "JWT Token"
+  regex = '''eyJ[A-Za-z0-9-_=]+\.eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*'''
+  tags = ["token", "JWT"]
+
+[[rules]]
+  id = "github-token"
+  description = "GitHub Token"
+  regex = '''ghp_[A-Za-z0-9]{36}'''
+  tags = ["token", "GitHub"]
+
+[[rules]]
+  id = "github-fine-grained-pat"
+  description = "GitHub Fine-Grained PAT"
+  regex = '''github_pat_[A-Za-z0-9_]{82}'''
+  tags = ["token", "GitHub"]
+
+[[rules]]
+  id = "slack-token"
+  description = "Slack Token"
+  regex = '''xox[baprs]-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24,34}'''
+  tags = ["token", "Slack"]
+
+[[rules]]
+  id = "stripe-key"
+  description = "Stripe Key"
+  regex = '''[rs]k_(live|test)_[0-9a-zA-Z]{24,99}'''
+  tags = ["key", "Stripe"]
+
+[[rules]]
+  id = "generic-api-key"
+  description = "Generic API Key"
+  regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*['\"][0-9a-zA-Z]{32,}['\"]'''
+  tags = ["key", "generic"]
+
+[[rules]]
+  id = "database-url"
+  description = "Database Connection URL"
+  regex = '''(?i)(postgres(ql)?|mysql|mariadb|mongodb)://[^\s'\"<>]+'''
+  tags = ["url", "database"]
+  [rules.allowlist]
+    paths = [
+      '''docker-compose\.yml$''',
+      '''docker-compose\..*\.yml$''',
+      '''\.env\.example$''',
+    ]
+
+[[rules]]
+  id = "dotenv-secrets"
+  description = "Secrets in .env files"
+  regex = '''(?i)(password|secret|token|key)\s*=\s*[^\s]+'''
+  tags = ["env", "secret"]
+  [rules.allowlist]
+    paths = [
+      '''\.env\.example$''',
+      '''\.env\.sample$''',
+    ]
+    values = [
+      '''changeme''',
+      '''password123''',
+      '''dev-.*''',
+      '''test-.*''',
+    ]
