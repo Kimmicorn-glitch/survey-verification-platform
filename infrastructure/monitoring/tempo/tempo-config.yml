@@ -1,0 +1,104 @@
+server:
+  http_listen_port: 3200
+  log_level: info
+
+distributor:
+  receivers:
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+        grpc:
+          endpoint: 0.0.0.0:14250
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+    zipkin:
+      endpoint: 0.0.0.0:9411
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: development
+  storage:
+    path: /var/tempo/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+  traces_storage:
+    path: /var/tempo/traces
+  processor:
+    service_graphs:
+      dimensions:
+        - service.name
+        - http.method
+        - http.status_code
+    span_metrics:
+      dimensions:
+        - service.name
+        - http.method
+        - http.status_code
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
+      max_active_series: 5000
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+    pool:
+      max_workers: 100
+      queue_depth: 20000
+
+compactor:
+  compaction:
+    block_retention: 30d
+    compacted_block_retention: 10m
+    max_block_bytes: 1073741824
+    max_block_duration: 1h
+    max_compaction_objects: 1000000
+    max_object_bytes: 524288000
+    retention_concurrency: 10
+  wal:
+    completed objects: 5000
+    flush_check_period: 10s
+    max_flush_retries: 3
+    pause: 1s
+    search_flush_check_period: 5s
+
+query_range:
+  results_cache:
+    cache: embedded
+    embedded_cache:
+      enabled: true
+      max_size_bytes: 134217728
+      ttl: 1h
+
+querier:
+  max_concurrent_queries: 20
+  search:
+    max_duration: 0s
+
+analytics:
+  reporting_enabled: false
+
+limits_config:
+  max_bytes_per_tag_values_query: 5000000
+  max_search_bytes_per_tag_values_query: 5000000
+  ingestion_rate_multiplier: 2.0
+  ingestion_burst_size_multiplier: 2.0
+
+memberlist:
+  join_members:
+    - tempo-0.tempo-memberlist
+    - tempo-1.tempo-memberlist

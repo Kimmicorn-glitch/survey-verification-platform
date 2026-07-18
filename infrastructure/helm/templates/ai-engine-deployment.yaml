@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ai-engine
+  labels:
+    app: survey-platform
+    component: ai-engine
+    {{- include "survey-platform.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount.aiEngine }}
+  selector:
+    matchLabels:
+      app: survey-platform
+      component: ai-engine
+  template:
+    metadata:
+      labels:
+        app: survey-platform
+        component: ai-engine
+    spec:
+      containers:
+        - name: ai-engine
+          image: "{{ .Values.image.aiEngine.repository }}:{{ .Values.image.aiEngine.tag }}"
+          imagePullPolicy: {{ .Values.image.aiEngine.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.aiEngine.targetPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "{{ .Values.service.aiEngine.targetPort }}"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.existingSecret }}
+                  key: jdbc-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret | default (printf "%s-secrets" .Release.Name) }}
+                  key: jwt-secret
+            - name: MODEL_DIR
+              value: "/models"
+          resources:
+            {{- toYaml .Values.resources.aiEngine | nindent 12 }}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.aiEngine.targetPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.aiEngine.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-models-pvc

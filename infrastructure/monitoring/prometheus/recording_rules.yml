@@ -1,0 +1,60 @@
+groups:
+  - name: http_recording_rules
+    interval: 15s
+    rules:
+      - record: job:http_requests:rate5m
+        expr: sum(rate(http_requests_total[5m])) by (job)
+
+      - record: job:http_requests:rate1h
+        expr: sum(rate(http_requests_total[1h])) by (job)
+
+      - record: job:http_request_errors:rate5m
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) by (job)
+
+      - record: job:http_request_duration:p95_5m
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+
+      - record: job:http_request_duration:p99_5m
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+
+      - record: job:http_request_duration:avg5m
+        expr: sum(rate(http_request_duration_seconds_sum[5m])) by (job) / sum(rate(http_request_duration_seconds_count[5m])) by (job)
+
+      - record: job:http_requests_by_status:rate5m
+        expr: sum(rate(http_requests_total[5m])) by (job, status)
+
+  - name: service_recording_rules
+    interval: 30s
+    rules:
+      - record: service:container_cpu:usage_rate
+        expr: sum(rate(container_cpu_usage_seconds_total[5m])) by (container)
+
+      - record: service:container_memory:usage_bytes
+        expr: sum(container_memory_usage_bytes) by (container)
+
+      - record: service:container_memory:usage_ratio
+        expr: |
+          sum(container_memory_usage_bytes) by (container)
+          /
+          sum(container_spec_memory_limit_bytes) by (container)
+
+      - record: service:jvm_memory:used_ratio
+        expr: |
+          sum(jvm_memory_used_bytes{area="heap"}) by (service)
+          /
+          sum(jvm_memory_max_bytes{area="heap"}) by (service)
+
+  - name: business_recording_rules
+    interval: 60s
+    rules:
+      - record: business:surveys_verified:rate1h
+        expr: sum(rate(surveys_verified_total[1h]))
+
+      - record: business:nft_minted:rate1h
+        expr: sum(rate(nft_minted_total[1h]))
+
+      - record: business:nft_minting_failures:rate1h
+        expr: sum(rate(nft_minting_failures_total[1h]))
+
+      - record: business:verification_queue_size:current
+        expr: survey_verification_queue_size

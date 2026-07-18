@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    app: survey-platform
+    component: backend
+    {{- include "survey-platform.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.backend.type }}
+  ports:
+    - port: {{ .Values.service.backend.port }}
+      targetPort: {{ .Values.service.backend.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: survey-platform
+    component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-frontend
+  labels:
+    app: survey-platform
+    component: frontend
+    {{- include "survey-platform.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+    - port: {{ .Values.service.frontend.port }}
+      targetPort: {{ .Values.service.frontend.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: survey-platform
+    component: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ai-engine
+  labels:
+    app: survey-platform
+    component: ai-engine
+    {{- include "survey-platform.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.aiEngine.type }}
+  ports:
+    - port: {{ .Values.service.aiEngine.port }}
+      targetPort: {{ .Values.service.aiEngine.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: survey-platform
+    component: ai-engine

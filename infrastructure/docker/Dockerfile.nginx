@@ -1,0 +1,23 @@
+# ============================================
+# Nginx Reverse Proxy with Custom Configuration
+# Survey Verification Platform
+# ============================================
+
+FROM nginx:1.27-alpine
+
+RUN apk add --no-cache curl
+
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY infrastructure/nginx/nginx.conf /etc/nginx/nginx.conf
+
+RUN mkdir -p /var/cache/nginx /var/run /var/log/nginx && \
+    chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx && \
+    chmod -R 755 /var/cache/nginx
+
+EXPOSE 80 443
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

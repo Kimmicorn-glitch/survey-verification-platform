@@ -1,0 +1,47 @@
+# ============================================
+# Multi-stage Dockerfile for Rust AI Engine
+# Axum service - Survey Verification Platform
+# ============================================
+
+# Stage 1: Build
+FROM rust:1.82-slim-bookworm AS builder
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends pkg-config libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN cargo init --name ai-engine
+COPY ai-engine/Cargo.toml ai-engine/Cargo.lock ./
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src target/release/.fingerprint/ai-engine-* target/release/deps/ai-engine-* target/release/ai-engine
+
+COPY ai-engine/src ./src
+COPY ai-engine/migrations ./migrations
+COPY ai-engine/config ./config
+
+RUN touch src/main.rs && cargo build --release
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl libssl3 && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd -r aigroup && useradd -r -g aigroup aigroup
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/ai-engine ./
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/migrations ./migrations
+
+RUN chown -R aigroup:aigroup /app
+USER aigroup
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3001/health || exit 1
+
+CMD ["./ai-engine"]

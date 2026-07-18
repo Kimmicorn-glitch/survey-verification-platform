@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend
+  labels:
+    app: survey-platform
+    component: frontend
+    {{- include "survey-platform.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount.frontend }}
+  selector:
+    matchLabels:
+      app: survey-platform
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: survey-platform
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.image.frontend.repository }}:{{ .Values.image.frontend.tag }}"
+          imagePullPolicy: {{ .Values.image.frontend.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.frontend.targetPort }}
+              protocol: TCP
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://surveyplatform.backofficepro.com/api"
+            - name: NEXT_PUBLIC_AI_ENGINE_URL
+              value: "https://surveyplatform.backofficepro.com/ai"
+            - name: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret | default (printf "%s-secrets" .Release.Name) }}
+                  key: walletconnect-project-id
+          resources:
+            {{- toYaml .Values.resources.frontend | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.frontend.targetPort }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.frontend.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10

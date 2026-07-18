@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: survey-verification-platform
+  labels:
+    app.kubernetes.io/name: survey-verification-platform
+    app.kubernetes.io/part-of: survey-verification-platform
+    environment: production

@@ -1,0 +1,195 @@
+﻿groups:
+  - name: service_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.service }} (threshold: 5%)"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.service }}"
+          description: "95th percentile latency is {{ $value }}s for {{ $labels.service }} (threshold: 1s)"
+
+      - alert: VeryHighLatency
+        expr: |
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Very high latency on {{ $labels.service }}"
+          description: "99th percentile latency is {{ $value }}s for {{ $labels.service }} (threshold: 5s)"
+
+      - alert: HighCPUUsage
+        expr: |
+          (sum(rate(container_cpu_usage_seconds_total[5m])) by (container) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on container {{ $labels.container }}"
+          description: "CPU usage is {{ $value }}% for {{ $labels.container }}"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on container {{ $labels.container }}"
+          description: "Memory usage is {{ $value }}% for {{ $labels.container }} (threshold: 80%)"
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage on container {{ $labels.container }}"
+          description: "Memory usage is {{ $value }}% for {{ $labels.container }} - OOM kill imminent"
+
+      - alert: ContainerRestarting
+        expr: increase(container_restart_count[1h]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.container }} is restarting frequently"
+          description: "Container has restarted {{ $value }} times in the last hour"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Connection pool usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+      - alert: DatabaseConnectionPoolCritical
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool critically exhausted"
+          description: "Connection pool usage is {{ $value | humanizePercentage }} (threshold: 95%)"
+
+      - alert: HighDiskUsage
+        expr: |
+          100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}% (threshold: 90%)"
+
+      - alert: CriticalDiskUsage
+        expr: |
+          100 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100) > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk usage on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}% - disk full imminent"
+
+      - alert: SSLCertificateExpiryWarning
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL certificate expiring soon on {{ $labels.instance }}"
+          description: "SSL certificate expires in {{ $value }} days (threshold: 30 days)"
+
+      - alert: SSLCertificateExpiryCritical
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "SSL certificate critically close to expiry on {{ $labels.instance }}"
+          description: "SSL certificate expires in {{ $value }} days - renewal required immediately"
+
+      - alert: SlowAIProcessing
+        expr: |
+          histogram_quantile(0.95, sum(rate(ai_processing_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI engine processing is slow"
+          description: "95th percentile AI processing time is {{ $value }}s (threshold: 10s)"
+
+      - alert: SurveyVerificationBacklog
+        expr: |
+          survey_verification_queue_size > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Survey verification backlog is high"
+          description: "Queue size is {{ $value }} (threshold: 1000)"
+
+  - name: business_alerts
+    rules:
+      - alert: LowVerificationRate
+        expr: |
+          rate(surveys_verified_total[1h]) < 10
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low survey verification rate"
+          description: "Verification rate dropped to {{ $value }}/s"
+
+      - alert: NFTMintingFailures
+        expr: |
+          rate(nft_minting_failures_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NFT minting failures detected"
+          description: "NFT minting failure rate is {{ $value }}/s"
+
+      - alert: HighAuthFailureRate
+        expr: |
+          rate(http_requests_total{path="/api/v1/auth/login", status=~"4.."}[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Auth failure rate is {{ $value }}/s - possible brute force attack"
