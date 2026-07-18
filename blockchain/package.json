@@ -23,7 +23,7 @@
     "@openzeppelin/contracts-upgradeable": "^5.1.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^7.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
     "@nomicfoundation/hardhat-verify": "^2.0.10",
