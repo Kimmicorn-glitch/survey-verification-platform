@@ -1,0 +1,328 @@
+name: CD Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy"
+        required: true
+        type: string
+  push:
+    tags: ["v*"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+  PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+  PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+
+jobs:
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push AI Engine
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.ai-engine
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-engine:${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-engine:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Nginx
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.nginx
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/nginx:${{ inputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/nginx:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+    outputs:
+      image_tag: ${{ inputs.image_tag }}
+
+  tag-release:
+    name: Tag Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    outputs:
+      image_tag: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push AI Engine
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.ai-engine
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-engine:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-engine:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Nginx
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.nginx
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/nginx:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/nginx:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, tag-release]
+    if: always() && (needs.build-and-push.result == 'success' || needs.tag-release.result == 'success')
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [ -n "${{ needs.build-and-push.outputs.image_tag }}" ]; then
+            echo "image_tag=${{ needs.build-and-push.outputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "image_tag=${{ needs.tag-release.outputs.image_tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create backup before deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.PRODUCTION_HOST }}
+          username: ${{ env.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/survey-verification-platform
+            BACKUP_NAME="pre-deploy-$(date +%Y%m%d%H%M%S)"
+            echo "Creating backup: $BACKUP_NAME"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres pg_dump -U svp_user survey_verification | gzip > /opt/backups/${BACKUP_NAME}.sql.gz
+            echo "Backup created: /opt/backups/${BACKUP_NAME}.sql.gz"
+
+      - name: Deploy with rolling update
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.PRODUCTION_HOST }}
+          username: ${{ env.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/survey-verification-platform
+
+            export IMAGE_TAG=${{ steps.tag.outputs.image_tag }}
+
+            echo "Deploying image tag: $IMAGE_TAG"
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --no-deps backend ai-engine
+
+            echo "Waiting for backend and AI engine to be healthy..."
+            sleep 15
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --no-deps frontend nginx
+
+            echo "Waiting for all services to be healthy..."
+            sleep 20
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+      - name: Health checks
+        id: health
+        run: |
+          PRODUCTION_URL="https://surveyverification.com"
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+
+          check_health() {
+            local url=$1
+            local name=$2
+            RETRY_COUNT=0
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" --max-time 15)
+              if [ "$HTTP_STATUS" = "200" ]; then
+                echo "$name is healthy (HTTP $HTTP_STATUS)"
+                return 0
+              fi
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "Attempt $RETRY_COUNT/$MAX_RETRIES: $name returned HTTP $HTTP_STATUS, retrying in 10s..."
+              sleep 10
+            done
+            echo "$name health check FAILED after $MAX_RETRIES attempts"
+            return 1
+          }
+
+          ALL_HEALTHY=true
+          check_health "$PRODUCTION_URL" "Frontend" || ALL_HEALTHY=false
+          check_health "$PRODUCTION_URL/api/health" "Backend API" || ALL_HEALTHY=false
+          check_health "$PRODUCTION_URL/ai/health" "AI Engine" || ALL_HEALTHY=false
+
+          if [ "$ALL_HEALTHY" = false ]; then
+            echo "health_status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "All health checks passed"
+          echo "health_status=healthy" >> $GITHUB_OUTPUT
+
+      - name: Rollback on failure
+        if: failure() || steps.health.outputs.health_status == 'failed'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.PRODUCTION_HOST }}
+          username: ${{ env.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/survey-verification-platform
+
+            echo "ROLLBACK: Reverting to previous images..."
+            export IMAGE_TAG=prod-latest
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+            echo "Rollback complete. Waiting for services..."
+            sleep 30
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+            echo "Restoring database from pre-deploy backup..."
+            LATEST_BACKUP=$(ls -t /opt/backups/pre-deploy-*.sql.gz | head -1)
+            if [ -n "$LATEST_BACKUP" ]; then
+              gunzip -c "$LATEST_BACKUP" | docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres psql -U svp_user survey_verification
+              echo "Database restored from $LATEST_BACKUP"
+            else
+              echo "No backup found for restore"
+            fi
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    steps:
+      - name: Notify Slack on success
+        if: needs.deploy.result == 'success'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "Production deployment succeeded",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":rocket: *Production Deployment Successful*\n*Tag:* `${{ steps.tag.outputs.image_tag }}`\n*Actor:* `${{ github.actor }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on failure
+        if: needs.deploy.result == 'failure'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "Production deployment FAILED - rollback initiated",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: *Production Deployment Failed*\n*Tag:* `${{ steps.tag.outputs.image_tag }}`\n*Actor:* `${{ github.actor }}`\n*Status:* Automatic rollback triggered\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

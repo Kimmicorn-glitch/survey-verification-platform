@@ -1,0 +1,300 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Lint Frontend (ESLint)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint
+
+      - name: Lint Backend (Checkstyle)
+        working-directory: backend
+        run: mvn checkstyle:check -q
+
+      - name: Lint AI Engine (Clippy)
+        working-directory: ai-engine
+        run: cargo clippy -- -D warnings
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Type Check Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+      - name: Type Check Backend
+        working-directory: backend
+        run: mvn compile -q
+
+      - name: Type Check AI Engine
+        working-directory: ai-engine
+        run: cargo check
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: survey_verification_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test -- --coverage --ci
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/survey_verification_test
+
+      - name: Test Backend
+        working-directory: backend
+        run: mvn test -q
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/survey_verification_test
+          SPRING_DATASOURCE_USERNAME: test_user
+          SPRING_DATASOURCE_PASSWORD: test_password
+
+      - name: Test AI Engine
+        working-directory: ai-engine
+        run: cargo test
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/survey_verification_test
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          flags: unittests
+          fail_ci_if_error: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Backend
+        working-directory: backend
+        run: mvn package -DskipTests -q
+
+      - name: Build AI Engine
+        working-directory: ai-engine
+        run: cargo build --release
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Snyk to check for vulnerabilities (Frontend)
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --severity-threshold=high
+          working-directory: frontend
+
+      - name: Run Snyk to check for vulnerabilities (Backend)
+        uses: snyk/actions/maven@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --severity-threshold=high
+          working-directory: backend
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.frontend
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.backend
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build AI Engine Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.ai-engine
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-engine:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Nginx Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.nginx
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/nginx:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH

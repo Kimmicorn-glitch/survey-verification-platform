@@ -1,0 +1,94 @@
+version: 2
+updates:
+  # Frontend - npm
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Johannesburg"
+    open-pull-requests-limit: 15
+    reviewers:
+      - "backofficepro/backend"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Backend - Maven
+  - package-ecosystem: "maven"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Johannesburg"
+    open-pull-requests-limit: 15
+    reviewers:
+      - "backofficepro/backend"
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # AI Engine - Cargo
+  - package-ecosystem: "cargo"
+    directory: "/ai-engine"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Johannesburg"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "backofficepro/ai-team"
+    labels:
+      - "dependencies"
+      - "ai-engine"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Blockchain - npm (Hardhat project)
+  - package-ecosystem: "npm"
+    directory: "/blockchain"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Johannesburg"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "backofficepro/blockchain"
+    labels:
+      - "dependencies"
+      - "blockchain"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Africa/Johannesburg"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "backofficepro/devops"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"
+
+# Auto-merge rules for security updates
+# Note: auto-merge must be enabled in repository settings
+# These labels help identify security-related dependency PRs

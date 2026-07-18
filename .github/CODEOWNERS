@@ -1,0 +1,32 @@
+# Code Owners - Survey Verification Platform
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default
+* @backofficepro/engineering
+
+# Backend (Java / Spring Boot)
+/backend/ @backofficepro/backend
+
+# Frontend (React / Next.js)
+/frontend/ @backofficepro/frontend
+
+# Blockchain (Solidity / Hardhat)
+/blockchain/ @backofficepro/blockchain
+
+# AI Engine (Rust)
+/ai-engine/ @backofficepro/blockchain
+
+# DevOps / Infrastructure
+/infrastructure/ @backofficepro/devops
+/.github/ @backofficepro/devops
+/docker-compose*.yml @backofficepro/devops
+
+# Security
+/legal/security* @backofficepro/security
+/SECURITY.md @backofficepro/security
+/.trivyignore @backofficepro/security
+/.snyk @backofficepro/security
+
+# Legal & Documentation
+/legal/ @backofficepro/engineering
+/docs/ @backofficepro/engineering

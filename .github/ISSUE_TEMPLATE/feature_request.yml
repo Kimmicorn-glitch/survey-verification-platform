@@ -1,0 +1,88 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE]: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature. Please fill out the information below to help us evaluate and prioritize your request.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: Is this related to a problem? Describe the pain point.
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like.
+      placeholder: I would like...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered.
+      placeholder: I also considered...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the platform does this relate to?
+      multiple: true
+      options:
+        - Frontend (React / Next.js)
+        - Backend (Java / Spring Boot)
+        - AI Engine (Rust)
+        - Blockchain (Solidity / Hardhat)
+        - Infrastructure / DevOps
+        - API
+        - Database
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (Your Assessment)
+      description: How important is this feature to you?
+      options:
+        - Critical - Cannot work without this
+        - High - Significant improvement
+        - Medium - Nice to have
+        - Low - Minor enhancement
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case
+      description: Describe the use case or user story.
+      placeholder: |
+        As a [user type], I want [feature] so that [benefit].
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or references.
+      placeholder: Add any other context here...
+    validations:
+      required: false
