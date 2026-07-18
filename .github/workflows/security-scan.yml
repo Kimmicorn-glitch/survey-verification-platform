@@ -35,7 +35,7 @@ jobs:
             -q
 
       - name: Upload OWASP Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: owasp-dependency-check-report
@@ -265,7 +265,7 @@ jobs:
         if: always()
 
       - name: Upload Trivy SBOMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: trivy-sboms
@@ -309,7 +309,7 @@ jobs:
             -o spdx-json=sbom-nginx-spdx.json
 
       - name: Upload SBOMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: sbom-reports
