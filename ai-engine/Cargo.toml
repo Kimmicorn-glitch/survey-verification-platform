@@ -19,7 +19,7 @@ tower-http = { version = "0.5", features = ["cors", "trace", "limit"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 ort = "2.0.0-rc.12"
-geo = "0.28"
+geo = "0.33"
 geohash = "0.13"
 thiserror = "2"
 anyhow = "1"
