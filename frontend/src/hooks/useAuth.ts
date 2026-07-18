@@ -86,6 +86,8 @@ export function useAuth() {
           firstName: "Demo",
           lastName: "User",
           role: "admin",
+          permissions: [],
+          mfaEnabled: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }

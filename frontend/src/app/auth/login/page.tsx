@@ -43,6 +43,8 @@ export default function LoginPage() {
       firstName: provider === "google" ? "Google" : "GitHub",
       lastName: "User",
       role: "admin",
+      permissions: [],
+      mfaEnabled: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
