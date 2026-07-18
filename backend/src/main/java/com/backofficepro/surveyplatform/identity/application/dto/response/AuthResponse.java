@@ -1,0 +1,28 @@
+package com.backofficepro.surveyplatform.identity.application.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.Set;
+
+/**
+ * Response DTO containing authentication tokens and user info.
+ *
+ * @author BackOffice Pro
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AuthResponse {
+
+    private String accessToken;
+    private String refreshToken;
+    private String tokenType;
+    private long expiresIn;
+    private String userId;
+    private String email;
+    private Set<String> roles;
+}

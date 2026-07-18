@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    validate-on-migrate: true
+
+logging:
+  level:
+    root: INFO
+    com.backofficepro: INFO
+    org.springframework.security: WARN

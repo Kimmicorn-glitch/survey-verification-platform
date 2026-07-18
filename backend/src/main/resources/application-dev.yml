@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/survey_platform
+    username: ${DB_USERNAME:svp_app}
+    password: ${DB_PASSWORD:changeme}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+payment:
+  stripe:
+    secret-key: ${STRIPE_API_KEY:sk_test_changeme}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_changeme}
+
+logging:
+  level:
+    com.backofficepro: DEBUG
+    org.hibernate.SQL: DEBUG
