@@ -29,7 +29,7 @@
     "@nomicfoundation/hardhat-verify": "^2.0.10",
     "@typechain/hardhat": "^9.1.0",
     "@typechain/ethers-v6": "^0.5.1",
-    "hardhat": "^2.22.17",
+    "hardhat": "^3.11.1",
     "hardhat-gas-reporter": "^2.2.2",
     "hardhat-contract-sizer": "^2.10.0",
     "solidity-coverage": "^0.8.14",
